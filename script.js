@@ -1,7 +1,13 @@
 const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-// B3 - C6
+// C3 - C6
 // https://pages.mtu.edu/~suits/notefreqs.html
 const sounds = [
+  130.81,
+  146.83,
+  164.81,
+  174.61,
+  196.00,
+  220.00,
   246.94,
   261.63,
   293.66,
@@ -22,6 +28,9 @@ const sounds = [
 let selectedUuid;
 const attackTime = 0.05;
 const releaseTime = 0.01;
+const bassNotes = 6;
+const finalNoteLength = 0.5;
+const division = 32;
 
 function generateNew() {
   selectedUuid = uuid.v4();
@@ -60,43 +69,49 @@ function parseToIntArray(uuid) {
   return arr;
 }
 
-function parseToNotes(arr) {
+function parseToNotes(arr, melody) {
   let notes = [];
 
-  let noteSplit = arr.slice(0, 16);
-  let durationSplit = arr.slice(16);
-
-  noteSplit.forEach((note, i) => {
-    notes.push({
-      pitch: sounds[note],
-      duration: 0.125 + durationSplit[i] / 32,
+  if (melody) {
+    let melodyPointer = 0;
+    arr.forEach((note, i) => {
+      const pitch = sounds[note];
+      const duration = melody[melodyPointer].duration +
+        melody[melodyPointer + 1].duration;
+      melodyPointer += 2;
+  
+      notes.push({ pitch, duration });
     });
-  });
+    notes.push({ pitch: sounds[7], duration: melody[melodyPointer].duration });
+    notes.push({ pitch: sounds[7], duration: finalNoteLength });
+  } else {
+    let noteSplit = arr.slice(0, arr.length / 2);
+    let durationSplit = arr.slice(arr.length / 2);
 
-  notes.push({ pitch: sounds[1], duration: 0.5 });
+    noteSplit.forEach((note, i) => {
+      const pitch = sounds[note + 6];
+      const duration = 0.25 + durationSplit[i] / division;
+  
+      notes.push({ pitch, duration });
+    });
+    notes.push({ pitch: sounds[0], duration: finalNoteLength });
+  }
 
   return notes;
 }
 
-function convertUuid(uuid) {
-  const arr = parseToIntArray(uuid);
-  const notes = parseToNotes(arr);
-
-  return notes;
-}
-
-function playSound() {
+function runBass(arr, melody) {
+  const notes = parseToNotes(arr.slice(0, bassNotes), melody);
   const sine = audioCtx.createOscillator();
   const volume = audioCtx.createGain();
-  sine.connect(volume).connect(audioCtx.destination);
-
-  const notes = convertUuid(selectedUuid);
   let totalTime = audioCtx.currentTime;
 
-  volume.gain.linearRampToValueAtTime(0.5, totalTime);
+  sine.connect(volume).connect(audioCtx.destination);
+  volume.gain.linearRampToValueAtTime(0.1, totalTime);
+
   for (note of notes) {
     sine.frequency.setValueAtTime(note.pitch, totalTime);
-    volume.gain.linearRampToValueAtTime(1, totalTime + attackTime);
+    volume.gain.linearRampToValueAtTime(0.2, totalTime + attackTime);
     volume.gain.linearRampToValueAtTime(
       0,
       totalTime + note.duration - releaseTime
@@ -106,6 +121,37 @@ function playSound() {
 
   sine.start();
   sine.stop(totalTime);
+}
+
+function runMelody(arr) {
+  const notes = parseToNotes(arr.slice(bassNotes));
+  const sine = audioCtx.createOscillator();
+  const volume = audioCtx.createGain();
+  let totalTime = audioCtx.currentTime;
+
+  sine.connect(volume).connect(audioCtx.destination);
+  volume.gain.linearRampToValueAtTime(0.3, totalTime);
+
+  for (note of notes) {
+    sine.frequency.setValueAtTime(note.pitch, totalTime);
+    volume.gain.linearRampToValueAtTime(0.7, totalTime + attackTime);
+    volume.gain.linearRampToValueAtTime(
+      0,
+      totalTime + note.duration - releaseTime
+    );
+    totalTime += note.duration;
+  }
+
+  sine.start();
+  sine.stop(totalTime);
+
+  return notes;
+}
+
+function playSound() {
+  const arr = parseToIntArray(selectedUuid);
+  const melody = runMelody(arr);
+  runBass(arr, melody);
 }
 
 generateNew();
