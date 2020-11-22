@@ -73,6 +73,8 @@ function parseToNotes(arr) {
     });
   });
 
+  notes.push({ pitch: sounds[1], duration: 0.5 });
+
   return notes;
 }
 
