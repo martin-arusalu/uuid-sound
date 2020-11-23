@@ -30,7 +30,7 @@ const attackTime = 0.05;
 const releaseTime = 0.01;
 const bassNotes = 6;
 const finalNoteLength = 0.5;
-const division = 32;
+const nthNotes = 8;
 
 function generateNew() {
   selectedUuid = uuid.v4();
@@ -90,7 +90,7 @@ function parseToNotes(arr, melody) {
 
     noteSplit.forEach((note, i) => {
       const pitch = sounds[note + 6];
-      const duration = 0.25 + durationSplit[i] / division;
+      const duration = (1 + durationSplit[i] % 4) / nthNotes;
   
       notes.push({ pitch, duration });
     });
@@ -125,6 +125,7 @@ function runBass(arr, melody) {
 
 function runMelody(arr) {
   const notes = parseToNotes(arr.slice(bassNotes));
+  console.log(notes);
   const sine = audioCtx.createOscillator();
   const volume = audioCtx.createGain();
   let totalTime = audioCtx.currentTime;
